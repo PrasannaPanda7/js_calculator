@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import React, { useReducer } from "react";
 import "./App.css";
 
 const DigitButton = ({ val, dispatch, className = "" }) => {
@@ -14,116 +14,134 @@ const DigitButton = ({ val, dispatch, className = "" }) => {
   );
 };
 
-const OperatorButtons = ({ operator, dispatch, className = "" }) => {
+const OperatorButtons = ({ val, dispatch }) => {
   return (
     <button
-      className={className}
       onClick={() =>
-        dispatch({
-          type: ACTIONS.CHOOSE_OPERATION,
-          payload: { operation: operator },
-        })
+        dispatch({ type: ACTIONS.ADD_OPERATOR, payload: { operator: val } })
       }
     >
-      {operator}
+      {val}
     </button>
   );
 };
 
 const ACTIONS = {
-  ADD_DIGITS: "add-digits",
-  CLEAR: "clear",
-  CHOOSE_OPERATION: "choose-operation",
-  DELETE_DIGITS: "delete-digits",
-  EVALUATE: "evaluate",
-};
-
-const evaluate = ({ previousOperand, currentOperand, operator }) => {
-  const previous = parseFloat(previousOperand),
-    current = parseFloat(currentOperand);
-  switch (operator) {
-    case "+":
-      return previous + current;
-    case "-":
-      return previous - current;
-    case "*":
-      return previous * current;
-    case "/":
-      if (current === 0) {
-        throw new Error("Cannot divide by zero");
-      }
-      return previous / current;
-    case "%":
-      return previous % current;
-    default:
-      throw new Error("Invalid operator");
-  }
+  ADD_DIGITS: "addDigits",
+  CLEAR: "clearDigits",
+  ADD_OPERATOR: "addOperator",
+  RESET_STATE: "resetState",
+  EAVL: "evaluate",
 };
 
 const reducer = (state, { type, payload }) => {
   switch (type) {
     case ACTIONS.ADD_DIGITS:
-      if (state.currentOperand === "0" && payload.digit === "0") return state;
-      if (state.currentOperand?.includes(".") && payload.digit === ".")
+      if (state.currentValue === "0" && payload.digit === "0") return state;
+      if (state.currentValue?.includes(".") && payload.digit === ".")
         return state;
       return {
         ...state,
-        currentOperand: `${state.currentOperand || ""}${payload.digit}`,
+        currentValue: `${state?.currentValue || ""}${payload.digit}`,
       };
-    case ACTIONS.CHOOSE_OPERATION:
-      if (state.currentOperand === null && state.previousOperand === null)
-        return state;
-      if (state.previousOperand == null) {
+    case ACTIONS.ADD_OPERATOR:
+      if (state.operator) {
+        if (state.currentValue) {
+          return {
+            ...state,
+            previousValue: eval(
+              `${state.previousValue}${state.operator}${state.currentValue}`
+            ),
+            operator: payload.operator,
+            currentValue: "",
+          };
+        } else {
+          return {
+            ...state,
+            operator: payload.operator,
+          };
+        }
+      } else {
         return {
           ...state,
-          previousOperand: state.currentOperand,
-          currentOperand: null,
-          operator: payload.operation,
+          previousValue: state.currentValue,
+          currentValue: "",
+          operator: payload.operator,
+        };
+      }
+    case ACTIONS.CLEAR:
+      if (state.currentValue) {
+        return {
+          ...state,
+          currentValue: state.currentValue.slice(0, -1) || "0",
         };
       } else {
         return {
           ...state,
-          previousOperand: evaluate(state),
-          currentOperand: null,
-          operator: payload.operation,
+          currentValue: "0",
+          previousValue: "",
+          operator: null,
         };
       }
-    case ACTIONS.CLEAR:
-      return {};
+    case ACTIONS.RESET_STATE:
+      return {
+        previousValue: "",
+        currentValue: "0",
+        operator: null,
+      };
+    case ACTIONS.EAVL:
+      if (!state.operator || !state.previousValue || !state.currentValue)
+        return state;
+      const result = eval(
+        `${state.previousValue}${state.operator}${state.currentValue}`
+      );
+      return {
+        ...state,
+        previousValue: "",
+        currentValue: result.toString(),
+        operator: null,
+      };
+    default:
+      return state;
   }
 };
+
 function App() {
-  const [{ previousOperand, currentOperand, operator }, dispatch] = useReducer(
+  const [{ previousValue, currentValue, operator }, dispatch] = useReducer(
     reducer,
-    {}
+    { previousValue: "", currentValue: "0", operator: null }
   );
   return (
     <div className="calculator">
-      <div className="output">
+      <div className="display">
         <div className="previous-operand">
-          {previousOperand} {operator}
+          {previousValue} {operator}
         </div>
-        <div className="current-operand">{currentOperand}</div>
+        <div className="current-operand">{currentValue}</div>
       </div>
-      <button onClick={() => dispatch({ type: ACTIONS.CLEAR })}>AC</button>
-      <button>DEL</button>
-      <OperatorButtons operator={"%"} dispatch={dispatch} />
-      <OperatorButtons operator={"/"} dispatch={dispatch} />
+      <button onClick={() => dispatch({ type: ACTIONS.RESET_STATE })}>
+        AC
+      </button>
+      <button onClick={() => dispatch({ type: ACTIONS.CLEAR })}>DEL</button>
+      <OperatorButtons val={"%"} dispatch={dispatch} />
+      <OperatorButtons val={"/"} dispatch={dispatch} />
       <DigitButton val={"7"} dispatch={dispatch} />
       <DigitButton val={"8"} dispatch={dispatch} />
       <DigitButton val={"9"} dispatch={dispatch} />
-      <OperatorButtons operator={"*"} dispatch={dispatch} />
+      <OperatorButtons val={"*"} dispatch={dispatch} />
       <DigitButton val={"4"} dispatch={dispatch} />
       <DigitButton val={"5"} dispatch={dispatch} />
       <DigitButton val={"6"} dispatch={dispatch} />
-      <OperatorButtons operator={"+"} dispatch={dispatch} />
+      <OperatorButtons val={"+"} dispatch={dispatch} />
       <DigitButton val={"1"} dispatch={dispatch} />
       <DigitButton val={"2"} dispatch={dispatch} />
       <DigitButton val={"3"} dispatch={dispatch} />
-      <OperatorButtons operator={"-"} dispatch={dispatch} />
-      <DigitButton val={"0"} dispatch={dispatch} className={"span-two"} />
+      <OperatorButtons val={"-"} dispatch={dispatch} />
+      <DigitButton className="span-two" val={"0"} dispatch={dispatch} />
       <DigitButton val={"."} dispatch={dispatch} />
-      <button className="span-teo">=</button>
+      <button val={"="} onClick={() => dispatch({ type: ACTIONS.EAVL })}>
+        =
+      </button>
     </div>
   );
 }
